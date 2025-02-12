@@ -17,22 +17,22 @@ M=0
 @R3
 M=0
 
-// Handle negative dividend (R0) and divisor (R1)
+// Store sign of result
 @R0
 D=M
-@NEG_X
-D;JLT   // If dividend (x) < 0, jump to NEG_X
+@NEGATIVE_X
+D;JLT   // If dividend (x) < 0, jump to NEGATIVE_X
 
 @R1
 D=M
-@NEG_Y
-D;JLT   // If divisor (y) < 0, jump to NEG_Y
+@NEGATIVE_Y
+D;JLT   // If divisor (y) < 0, jump to NEGATIVE_Y
 
-// Perform division using subtraction
+// Copy dividend into remainder
 @R0
 D=M
 @R3
-M=D   // Copy x into remainder
+M=D
 
 (LOOP)
 @R3
@@ -54,6 +54,19 @@ M=M+1  // Increment quotient
 (DONE)
 @R4
 M=0  // Set valid division flag
+
+// Restore sign for quotient if needed
+@R5
+D=M
+@NEGATE_QUOTIENT
+D;JEQ   // If sign flag was set, negate quotient
+
+@END
+0;JMP
+
+(NEGATE_QUOTIENT)
+@R2
+M=-M
 @END
 0;JMP
 
@@ -65,25 +78,30 @@ M=1   // Set invalid flag
 0;JMP
 
 // Handle negative x (dividend)
-(NEG_X)
+(NEGATIVE_X)
 @R0
 D=M
 D=-D
 @R3
 M=D  // Make remainder positive
+@R5
+M=1  // Set sign flag
 @LOOP
 0;JMP
 
 // Handle negative y (divisor)
-(NEG_Y)
+(NEGATIVE_Y)
 @R1
 D=M
 D=-D
 @R1
 M=D  // Make divisor positive
+@R5
+M=1  // Set sign flag
 @LOOP
 0;JMP
 
 (END)
 @END
 0;JMP  // Infinite loop
+
