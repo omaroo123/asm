@@ -1,114 +1,176 @@
 // IntegerDivision.asm
-// Computes integer division: R0 / R1
-// R0 = Dividend (x)
-// R1 = Divisor (y)
-// R2 = Quotient (m)
-// R3 = Remainder (q)
-// R4 = Flag (1 if division invalid, 0 otherwise)
+// Computes m and q such that x = y*m + q, with q having the same sign as x and |q| < |y|.
+// x is initially in R0 and y in R1.
+// The quotient m is stored in R2 and the remainder q in R3.
+// The flag in R4 is set to 1 if y is zero (invalid division) and to 0 otherwise.
+// The values in R0 and R1 are not modified.
+// Temporary registers used:
+//   R5 = copy of x, R6 = copy of y,
+//   R7 = |x| (working remainder), R8 = |y|.
 
-@R1
-D=M
-@DIV_BY_ZERO
-D;JEQ   // If divisor (y) is 0, go to error handling
+    // --- Copy original x and y into temporaries ---
+    @R0
+    D=M
+    @R5
+    M=D         // R5 <- x
+    @R1
+    D=M
+    @R6
+    M=D         // R6 <- y
 
-// Initialize quotient and remainder
-@R2
-M=0
-@R3
-M=0
+    // --- Check for division by zero ---
+    @R6
+    D=M
+    @DIV_BY_ZERO
+    D;JEQ      // if y == 0, jump to error routine
 
-// Store dividend in remainder (for subtraction)
-@R0
-D=M
-@R3
-M=D
+    // Valid division: clear flag (R4 = 0)
+    @R4
+    M=0
 
-// Track sign flag for quotient correction at the end
-@R5
-M=0    // Default: positive quotient
+    // --- Compute absolute value of x into R7 ---
+    @R5
+    D=M
+    @X_POSITIVE
+    D;JGE      // if x >= 0, jump to X_POSITIVE
+    // x is negative: R7 = -x
+    @R5
+    D=M
+    D=0-D
+    @R7
+    M=D
+    @AFTER_X_ABS
+    0;JMP
+(X_POSITIVE)
+    @R5
+    D=M
+    @R7
+    M=D       // R7 = x (already nonnegative)
+(AFTER_X_ABS)
 
-// Handle negative dividend
-@R0
-D=M
-@MAKE_POSITIVE_X
-D;JLT   // If x < 0, make it positive
+    // --- Compute absolute value of y into R8 ---
+    @R6
+    D=M
+    @Y_POSITIVE
+    D;JGE      // if y >= 0, jump to Y_POSITIVE
+    // y is negative: R8 = -y
+    @R6
+    D=M
+    D=0-D
+    @R8
+    M=D
+    @AFTER_Y_ABS
+    0;JMP
+(Y_POSITIVE)
+    @R6
+    D=M
+    @R8
+    M=D       // R8 = y (nonnegative)
+(AFTER_Y_ABS)
 
-// Handle negative divisor
-@R1
-D=M
-@MAKE_POSITIVE_Y
-D;JLT   // If y < 0, make it positive
+    // --- Division loop on absolute values ---
+    // Initialize quotient (m) in R2 to 0.
+    @R2
+    M=0
 
-// Perform division using subtraction
 (DIV_LOOP)
-@R3
-D=M
-@R1
-D=D-M
-@CHECK_DONE
-D;LT   // Stop if remainder < divisor
+    // If current remainder (in R7) is less than divisor (in R8), we are done.
+    @R7
+    D=M
+    @R8
+    D=D-M
+    @DIV_END
+    D;JLT     // if (|x| - |y|) < 0 then exit loop
 
-@R3
-M=D   // Store new remainder
+    // Subtract divisor: R7 = R7 - R8
+    @R8
+    D=M
+    @R7
+    M=M-D
 
-@R2
-M=M+1  // Increment quotient
+    // Increment quotient (R2 = R2 + 1)
+    @R2
+    D=M
+    D=D+1
+    @R2
+    M=D
 
-@DIV_LOOP
-0;JMP  // Repeat division loop
+    @DIV_LOOP
+    0;JMP
 
-(CHECK_DONE)
-@R4
-M=0   // Valid division flag
-
-// Restore sign for quotient if necessary
-@R5
-D=M
-@NEGATE_QUOTIENT
-D;JEQ  // If sign flag was set, negate quotient
-
-@END
-0;JMP
-
+(DIV_END)
+    // --- Adjust sign of the quotient ---
+    // We want the quotient to be negative when x and y have different signs.
+    // Check the sign of x (in R5).
+    @R5
+    D=M
+    @X_NONNEG
+    D;JGE     // if x >= 0, jump to X_NONNEG
+    // Here x is negative.
+    @R6
+    D=M
+    @XNEG_Y_NONNEG
+    D;JGE     // if y >= 0 then x negative and y nonnegative: need to negate quotient.
+    @SKIP_NEGATE
+    0;JMP
+(X_NONNEG)
+    // Here x is nonnegative.
+    @R6
+    D=M
+    @NEGATE_QUOTIENT
+    D;JLT     // if y < 0 then different signs: negate quotient.
+    @SKIP_NEGATE
+    0;JMP
+(XNEG_Y_NONNEG)
+    // x negative and y nonnegative: fall through to negate.
+    @NEGATE_QUOTIENT
+    0;JMP
 (NEGATE_QUOTIENT)
-@R2
-M=-M
-@END
-0;JMP
+    // Negate quotient in R2: R2 = 0 - R2.
+    @R2
+    D=M
+    D=0-D
+    @R2
+    M=D
+(SKIP_NEGATE)
 
-// Make x (dividend) positive
-(MAKE_POSITIVE_X)
-@R0
-D=M
-D=-D
-@R3
-M=D   // Store positive remainder
-@R5
-M=1   // Track that we need to negate quotient later
-@DIV_LOOP
-0;JMP
+    // --- Adjust the remainder's sign ---
+    // The remainder must have the same sign as x.
+    @R5
+    D=M
+    @NO_REMAINDER_NEGATE
+    D;JGE     // if x >= 0, no change is needed.
+    // Otherwise, negate remainder in R7.
+    @R7
+    D=M
+    D=0-D
+    @R7
+    M=D
+(NO_REMAINDER_NEGATE)
 
-// Make y (divisor) positive
-(MAKE_POSITIVE_Y)
-@R1
-D=M
-D=-D
-@R1
-M=D   // Store positive divisor
-@R5
-M=1   // Track that we need to negate quotient later
-@DIV_LOOP
-0;JMP
+    // --- Store final remainder ---
+    @R7
+    D=M
+    @R3
+    M=D
 
-// Handle division by zero case
+    // --- End of valid division ---
+    @END_DIV
+    0;JMP
+
 (DIV_BY_ZERO)
-@R4
-M=1   // Set invalid division flag
-@END
-0;JMP
+    // Division by zero: set flag (R4 = 1) and clear quotient and remainder.
+    @R4
+    M=1
+    @R2
+    M=0
+    @R3
+    M=0
 
-(END)
-@END
-0;JMP  // Infinite loop to halt execution
+(END_DIV)
+    // Infinite loop to end program.
+    @END_DIV
+    0;JMP
+
 
 
