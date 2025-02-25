@@ -1,68 +1,69 @@
 // SumEvenIntegers.asm
-// Computes the sum of the first N positive even integers.
-// Input: R0 = N (if N <= 0, sum = 0)
-// Output: R1 = sum (R0 is not modified)
-// Algorithm: For counter = N, with current even number starting at 2,
-//   repeatedly add the current even to the sum, increment the even by 2, and decrement the counter.
+// Computes the sum of all even integers from 0 up to N (inclusive),
+// where N is stored in R0.
+// R0 is not modified and the final sum is stored in R1.
+// If N is negative, the sum is set to 0.
 
     @R0
     D=M
-    @NEG_CHECK
-    D;JLE         // if R0 <= 0, go to NEG_CHECK
+    @NEGATIVE
+    D;JLT         // if N < 0, jump to NEGATIVE
 
-    // Copy N into R2 as the loop counter.
+    // N is nonnegative; copy N into R2
     @R0
     D=M
     @R2
     M=D
 
-    // Initialize sum in R1 to 0.
+    // Initialize sum in R1 to 0 and index (current even number) in R3 to 0
     @R1
     M=0
-
-    // Initialize current even number in R3 to 2.
-    @2
-    D=A
     @R3
-    M=D
+    M=0
 
-(SUM_LOOP)
+(LOOP_EVEN)
+    // Check if current even number (in R3) is greater than N (in R2)
+    @R3
+    D=M       // D = i
     @R2
-    D=M
-    @SUM_END
-    D;JEQ        // if counter is 0, exit loop
-    // Add current even (in R3) to sum (R1):
+    D=D-M     // D = i - N
+    @END_EVEN
+    D;JGT     // if i > N, exit loop
+
+    // Add current even number (R3) to sum (R1)
     @R1
     D=M
     @R3
     D=D+M
     @R1
     M=D
-    // Increment current even: R3 = R3 + 2
+
+    // Increment index by 2: R3 = R3 + 2
     @R3
     D=M
-    @2
-    D=D+A
+    @CONST2
+    D=D+A   // A currently holds constant 2 from the next instruction
     @R3
     M=D
-    // Decrement counter: R2 = R2 - 1
-    @R2
-    D=M
-    D=D-1
-    @R2
-    M=D
-    @SUM_LOOP
-    0;JMP
-(SUM_END)
-    @END
+
+    @LOOP_EVEN
     0;JMP
 
-(NEG_CHECK)
+(END_EVEN)
+    @FINAL
+    0;JMP
+
+(NEGATIVE)
+    // For negative N, set sum to 0.
     @R1
     M=0
-    @END
+    @FINAL
     0;JMP
 
-(END)
-    @END
+(FINAL)
+    @FINAL
     0;JMP
+
+(CONST2)
+    @2
+    D=A
