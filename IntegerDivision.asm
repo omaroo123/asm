@@ -1,158 +1,128 @@
 // IntegerDivision.asm
-// Input: R0 = x, R1 = y (signed)
-// Output: R2 = quotient, R3 = remainder, R4 = flag (1 if y==0, else 0)
+// Computes quotient m and remainder q satisfying:
+//      x = y * m + q,
+// where q has the same sign as x and |q| < |y|.
+// Input:  R0 = x, R1 = y (signed)
+// Output: R2 = m (quotient), R3 = q (remainder), R4 = flag (0 if valid, 1 if y==0)
 // The values in R0 and R1 must not be modified.
 
-// -- Check for division by zero --
+// --- Check for division by zero ---
     @R1
     D=M
     @DIV_BY_ZERO
-    D;JEQ   // if y==0, jump to error handling
+    D;JEQ
 
-// -- Valid division: clear flag --
+// --- Valid division: clear flag ---
     @R4
     M=0
 
-// -- Save original values --
+// --- Save original x and y ---
     @R0
     D=M
     @R5
-    M=D       // R5 <- x
+    M=D        // R5 <- x
     @R1
     D=M
     @R6
-    M=D       // R6 <- y
+    M=D        // R6 <- y
 
-// -- Compute absolute value of x into R7 --
+// --- Compute |x| into R7 ---
     @R5
     D=M
-    @X_POS
-    D;JGE   // if x >= 0, jump to X_POS
-    // x is negative
+    @X_NONNEG
+    D;JGE     // if x >= 0, jump
+    // x is negative: |x| = 0 - x
     @R5
     D=M
     D=0-D
     @R7
     M=D
-    @AFTER_ABS_X
+    @X_DONE
     0;JMP
-(X_POS)
+(X_NONNEG)
     @R5
     D=M
     @R7
     M=D
-(AFTER_ABS_X)
+(X_DONE)
 
-// -- Compute absolute value of y into R8 --
+// --- Compute |y| into R8 ---
     @R6
     D=M
-    @Y_POS
-    D;JGE   // if y >= 0, jump to Y_POS
-    // y is negative
+    @Y_NONNEG
+    D;JGE
+    // y is negative: |y| = 0 - y
     @R6
     D=M
     D=0-D
     @R8
     M=D
-    @AFTER_ABS_Y
+    @Y_DONE
     0;JMP
-(Y_POS)
+(Y_NONNEG)
     @R6
     D=M
     @R8
     M=D
-(AFTER_ABS_Y)
+(Y_DONE)
 
-// -- Initialize quotient (R2 = 0) --
+// --- Division loop (using absolute values) ---
+// Initialize quotient (absolute value) in R2 to 0.
     @R2
     M=0
-
-// -- Division loop: subtract |y| from |x| until remainder < |y| --
 (DIV_LOOP)
     @R7
     D=M
     @R8
-    D=D-M    // D = (current remainder) - |y|
+    D=D-M      // D = (|x| - |y|)
     @END_DIV_LOOP
-    D;JLT   // if (|x| < |y|) then exit loop
-    // Subtract |y| from R7:
+    D;JLT     // if |x| < |y|, exit loop
+    // Subtract |y| from |x|
     @R8
     D=M
     @R7
-    M=M-D   // R7 = R7 - |y|
-    // Increment quotient in R2:
+    M=M-D
+    // Increment quotient (absolute)
     @R2
     M=M+1
     @DIV_LOOP
     0;JMP
 (END_DIV_LOOP)
 
-// -- Adjust the quotient's sign --
-// If x and y have opposite signs, the quotient is negated.
+// --- Adjust quotient sign ---
+// The desired quotient is negative when x and y have opposite signs.
+// Check: if (x >= 0 and y < 0) or (x < 0 and y >= 0), then negate R2.
     @R5
     D=M
-    @POS_X
-    D;JGE   // if x >= 0, jump to POS_X
-    // Here: x is negative.
+    @POS_X_NEG_CHECK
+    D;JLT     // if x < 0, branch to POS_X_NEG_CHECK
+    // x is nonnegative:
     @R6
     D=M
-    @NEGATE_Q
-    D;JGE   // if y >= 0 then different signs → negate quotient.
-    @SKIP_NEG_Q
+    @NEGATE_QUOTIENT
+    D;JLT     // if y < 0 then signs differ → negate quotient
+    @CONTINUE_DIV
     0;JMP
-(POS_X)
-    // x nonnegative: if y < 0 then negate quotient.
+(POS_X_NEG_CHECK)
+    // x is negative:
     @R6
     D=M
-    @NEGATE_Q
-    D;JLT   // if y < 0 → negate quotient.
-    @SKIP_NEG_Q
-    0;JMP
-(NEGATE_Q)
+    @NEGATE_QUOTIENT
+    D;JGE     // if y >= 0 then signs differ → negate quotient
+(NEGATE_QUOTIENT)
     @R2
     D=M
     D=0-D
     @R2
     M=D
-(SKIP_NEG_Q)
+(CONTINUE_DIV)
 
-// -- Adjust the remainder's sign --
-// The remainder must have the same sign as x.
+// --- Set remainder ---
+// We already have the absolute remainder in R7.
+// To give q the same sign as x, if x is negative then q = -|r|; otherwise, q = |r|.
     @R5
     D=M
-    @R_REM_NEG
-    D;JLT   // if x < 0, jump to negate remainder
-    // Otherwise, remainder = R7 as is.
-    @R7
-    D=M
-    @R3
-    M=D
-    @END_REM
-    0;JMP
-(R_REM_NEG)
-    @R7
-    D=M
-    D=0-D
-    @R3
-    M=D
-(END_REM)
-
-// -- End of valid division --
-    @END
-    0;JMP
-
-(DIV_BY_ZERO)
-    // Division by zero: set flag to 1 and clear quotient and remainder.
-    @R4
-    M=1
-    @R2
-    M=0
-    @R3
-    M=0
-
-(END)
-    @END
-    0;JMP
+  
 
 
 
