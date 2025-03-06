@@ -1,74 +1,64 @@
-// Initialization
+// Check for division by zero and set flag
+@R1
+D=M
+@INVALID_DIVISION
+D;JEQ
+
+// Initialize divisor and dividend
 @R0
 D=M
 @X
-M=D  // Store x in X
+M=D  // Store x in temporary variable X
 @R1
 D=M
 @Y
-M=D  // Store y in Y
-@R4
-M=0  // Initialize division valid flag
+M=D  // Store y in temporary variable Y
 
-// Check if y == 0 to handle division by zero
-@Y
-D=M
-@INVALID_DIVISION
-D;JEQ  // If Y is zero, set division as invalid
-
-// Initialize quotient (m) and remainder (q)
+// Initialize quotient and remainder
 @Q
-M=0  // Quotient initialized to 0
-@X
-D=M
-@R1
-@Y
-D=D-M // D now holds x - y initially
+M=0  // Quotient starts at 0
+@R
+M=D  // Remainder starts as x
 
-// Main division loop
-(DIV_LOOP)
-@X
+// Division loop
+(WHILE)
+@R
 D=M
 @Y
-M=D
-D=D-M // Check if x >= y
-@CONTINUE
-D;JGE  // If x >= y, continue subtracting
-@BREAK
-0;JMP  // Else, stop the loop
+D=D-M  // Calculate R - Y
+@IF
+D;JGE  // If remainder >= divisor, continue
 
-// Subtract y from x, increment quotient
-(CONTINUE)
-@X
-M=M-D
+// Set quotient and remainder
 @Q
 M=M+1  // Increment quotient
-@DIV_LOOP
-0;JMP  // Repeat the loop
+@R
+M=D    // Update remainder with new value
+@WHILE
+0;JMP  // Loop back
 
-// Finalize and store results
-(BREAK)
-@X
-D=M
-@R3
-M=D  // Store remainder in R3
+(IF)
 @Q
 D=M
 @R2
-M=D  // Store quotient in R2
+M=D  // Store quotient
+@R
+D=M
+@R3
+M=D  // Store remainder
+@R4
+M=0  // Set valid division flag
 @END
-0;JMP  // Jump to end
+0;JMP  // End program
 
-// Handle invalid division
+// Handle invalid division case
 (INVALID_DIVISION)
 @R4
-M=1  // Set invalid flag to 1
+M=1  // Set error flag
 @R2
-M=0  // Set quotient to 0
+M=0  // Zero quotient
 @R3
-M=0  // Set remainder to 0
+M=0  // Zero remainder
 
 (END)
-// No further action required
-
 
