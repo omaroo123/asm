@@ -1,40 +1,52 @@
-// Initialize sum to 0
-@R2
-M=0
+@R2   // THIS WILL STORE THE SUM 
+M = 0 
 
-// Check if R1 (number of entries) is positive
-@R1
-D=M
-@ARRAY_SUM_END
-D;JLE  // If number of entries <= 0, jump to end
+@R0     
 
-// Initialize index i to 0
-@I
-M=0   // Use R3 as I
+D = M 
 
-// Sum loop
-(SUM_LOOP)
-@I
-D=M
-@R1
-D=D-A // Compare index with number of elements
-@ARRAY_SUM_END
-D;JGE // If index >= number of entries, jump to end
+@R8     // changeable value that stores the value at R0 to access the items of our array 
 
-// Add array element to sum
-@R0
-D=M
-@I
-A=D+A // Address of the current element
-D=M   // Load current element
-@R2
-M=D+M // Add to sum
+M = D 
 
-// Increment index
-@I
-M=M+1
-@SUM_LOOP
-0;JMP // Jump back to start of loop
+@R1 
 
-(ARRAY_SUM_END)
+D = M 
+
+@R7    // changeable value that stores the number of values in our array 
+M = D 
+
+(LOOP)
+
+    @R8
+
+    D = M 
+
+    @R2
+
+    M = M + D 
+
+    @R8
+
+    M = M + 1 
+    
+ @R7
+    D=M     
+    D=D-1   
+    M=D 
+
+    @END_LOOP 
+
+    D;JLE
+
+    @LOOP
+
+
+(END_LOOP)
+
+@END_LOOP
+
+0;JMP
+
+
 
