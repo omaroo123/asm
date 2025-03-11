@@ -1,5 +1,4 @@
-# Creating the first assembly file (Division.asm)
-division_code = """// ----- First: Check for division by zero ----- 
+// ----- First: Check for division by zero ----- 
    @R1           // Load divisor
    D=M
    @INVALID_DIV // If R1==0, jump to error routine
@@ -129,4 +128,3 @@ division_code = """// ----- First: Check for division by zero -----
 (END)
    @END
    0;JMP
-"""
