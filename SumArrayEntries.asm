@@ -1,50 +1,62 @@
-@R2   // THIS WILL STORE THE SUM 
-M = 0 
+// ================================================
+// Student-Made Hack Assembly Program
+// Array Summation in Memory
+// ------------------------------------------------
+// Inputs:
+//   R0 - Base address of the array (starting point)
+//   R1 - Number of elements in the array
+//
+// Outputs:
+//   R2 - Sum of array elements
+//
+// Temporary Registers:
+//   R7 - Remaining elements counter (loop control)
+//   R8 - Pointer to current array element
+// ================================================
 
-@R0     
+// === Step 1: Initialize registers ===
+@R2
+M=0            // R2 will store the final sum, start at 0
 
-D = M 
+@R0
+D=M
+@R8
+M=D            // R8 = base address of array (pointer)
 
-@R8     // changeable value that stores the value at R0 to access the items of our array 
+@R1
+D=M
+@R7
+M=D            // R7 = number of elements remaining
 
-M = D 
+// === Step 2: Loop through the array ===
+(SUM_LOOP)
+@R7
+D=M
+@END_SUM
+D;JLE          // If no more elements, exit loop
 
-@R1 
+// Load current value from array
+@R8
+A=M
+D=M            // D = array[R8]
 
-D = M 
+// Add value to sum
+@R2
+M=M+D
 
-@R7    // changeable value that stores the number of values in our array 
-M = D 
+// Move pointer to next array element
+@R8
+M=M+1
 
-(LOOP)
+// Decrement counter
+@R7
+M=M-1
 
-    @R8
+// Repeat loop
+@SUM_LOOP
+0;JMP
 
-    D = M 
-
-    @R2
-
-    M = M + D 
-
-    @R8
-
-    M = M + 1 
-    
- 
-    @R7
-    D=M     
-    D=D-1   
-    M=D 
-
-    @END_LOOP 
-
-    D;JLE
-
-    @LOOP
-
-
-(END_LOOP)
-
-@END_LOOP
-
+// === Step 3: End (infinite loop) ===
+(END_SUM)
+@END_SUM
 0;JMP

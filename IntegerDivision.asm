@@ -1,130 +1,149 @@
-// ----- First: Check for division by zero ----- 
-   @R1           // Load divisor
-   D=M
-   @INVALID_DIV // If R1==0, jump to error routine
-   D;JEQ
+// ================================================
+// Student-Made Hack Assembly Program
+// Integer Division with Sign Handling and Error Check
+// ---------------------------------------------------
+// Inputs:
+//   R0 - Dividend (can be positive or negative)
+//   R1 - Divisor (can be positive or negative)
+// Outputs:
+//   R2 - Quotient (signed)
+//   R3 - Remainder (signed)
+//   R4 - Error flag (1 if division by zero, otherwise 0)
+// Registers used:
+//   R5 - Absolute value of dividend
+//   R6 - Absolute value of divisor
+//   R7 - Sign of dividend (+1 or -1)
+//   R8 - Sign of divisor (+1 or -1)
+// ================================================
 
-// ----- Save sign flags for R1 and R0 ----- 
-// For divisor: store +1 if positive, -1 if negative in R8.
-   @R1
-   D=M
-   @DIV1_POS
-   D;JGE       // If R1>=0, jump to DIV1_POS
-   @R8
-   M=-1       // R1 was negative; flag = -1
-   @SKIP_DIV_SIGN1
-   0;JMP
-(DIV1_POS)
-   @R8
-   M=1        // R1 was nonnegative; flag = +1
-(SKIP_DIV_SIGN1)
+// === Step 1: Division by Zero Check ===
+@R1        // Load divisor
+D=M
+@DIV_BY_ZERO
+D;JEQ      // If R1 == 0, jump to error handler
 
-// For dividend: store +1 if positive, -1 if negative in R7.
-   @R0
-   D=M
-   @DIV0_POS
-   D;JGE       // If R0>=0, jump to DIV0_POS
-   @R7
-   M=-1      // R0 was negative; flag = -1
-   @SKIP_DIV_SIGN0
-   0;JMP
-(DIV0_POS)
-   @R7
-   M=1       // R0 was nonnegative; flag = +1
-(SKIP_DIV_SIGN0)
+// === Step 2: Record signs ===
+// Save sign of R0 (dividend) in R7
+@R0
+D=M
+@DIVIDEND_POS
+D;JGE
+@R7
+M=-1       // Negative dividend
+@AFTER_SIGN0
+0;JMP
+(DIVIDEND_POS)
+@R7
+M=1        // Positive or zero dividend
+(AFTER_SIGN0)
 
-// ----- Compute absolute values for R1 and R0 ----- 
-// Get |R1| into R6
-   @R1
-   D=M
-   @ABS_R1
-   D;JGE      // If R1 is nonnegative, skip negation
-   @R1
-   D=M
-   D=-D      // Otherwise, negate it
-(ABS_R1)
-   @R6
-   M=D      // R6 now holds the absolute value of R1
+// Save sign of R1 (divisor) in R8
+@R1
+D=M
+@DIVISOR_POS
+D;JGE
+@R8
+M=-1       // Negative divisor
+@AFTER_SIGN1
+0;JMP
+(DIVISOR_POS)
+@R8
+M=1        // Positive or zero divisor
+(AFTER_SIGN1)
 
-// Get |R0| into R5
-   @R0
-   D=M
-   @ABS_R0
-   D;JGE      // If R0 is nonnegative, skip negation
-   @R0
-   D=M
-   D=-D      // Otherwise, negate it
-(ABS_R0)
-   @R5
-   M=D      // R5 now holds the absolute value of R0
+// === Step 3: Get absolute values ===
+// |dividend| -> R5
+@R0
+D=M
+@DIV_ABS
+D;JGE
+D=-D
+(DIV_ABS)
+@R5
+M=D
 
-// ----- Initialize quotient and error flag ----- 
-   @R4
-   M=0      // R4 = 0 (no error)
-   @R2
-   M=0      // R2 will hold the quotient
+// |divisor| -> R6
+@R1
+D=M
+@DIVISOR_ABS
+D;JGE
+D=-D
+(DIVISOR_ABS)
+@R6
+M=D
 
-// Copy the absolute dividend from R5 into R3 (the running remainder)
-   @R5
-   D=M
-   @R3
-   M=D
+// === Step 4: Initialize result registers ===
+@R2
+M=0        // Quotient
+@R3
+M=0        // Remainder
+@R4
+M=0        // Error flag = 0 (assume no error)
 
-// ----- Division Loop: Repeated subtraction ----- 
-(LOOP)
-   @R3
-   D=M        // Load current remainder
-   @R6
-   D=D-M      // Compute (remainder - divisor)
-   @END_LOOP
-   D;JLT      // If (remainder - divisor) is negative, exit loop
-   @R3
-   M=D        // Update remainder with new value
-   @R2
-   M=M+1      // Increment quotient
-   @LOOP
-   0;JMP
+// === Step 5: Set initial remainder to dividend ===
+@R5
+D=M
+@R3
+M=D        // R3 = absolute dividend
 
-(END_LOOP)
-// ----- Adjust result signs ----- 
-// The true quotient should be negative if the dividend and divisor have opposite signs.
-// (Since both R2 and R3 are currently absolute values, we check the sign flags in R7 and R8.)
-   @R7
-   D=M        // D = dividend sign (+1 or -1)
-   @R8
-   D=D-M     // D = (dividend sign - divisor sign); if zero, they are the same.
-   @SIGN_CORRECT
-   D;JEQ      // If D==0 then the signs were the same; no change needed.
-   // Otherwise, the signs differ so negate the quotient.
-   @R2
-   D=M
-   D=-D
-   @R2
-   M=D
-(SIGN_CORRECT)
-// Also, the remainder should have the same sign as the dividend.
-   @R7
-   D=M
-   @REMAINDER_POS
-   D;JGT     // If dividend was positive, leave remainder as is.
-   // Else (dividend negative), negate the remainder.
-   @R3
-   D=M
-   D=-D
-   @R3
-   M=D
-(REMAINDER_POS)
-   @END
-   0;JMP
+// === Step 6: Perform repeated subtraction (dividend / divisor) ===
+(DIV_LOOP)
+@R3
+D=M
+@R6
+D=D-M      // remainder - divisor
+@AFTER_DIV
+D;JLT      // If result < 0, we're done
 
-// ----- Error Routine: Division by zero ----- 
-(INVALID_DIV)
-   @R4
-   M=1      // Set error flag to 1 to indicate invalid division
-   @END
-   0;JMP
+// Update remainder and increment quotient
+@R3
+M=D
+@R2
+M=M+1
+@DIV_LOOP
+0;JMP
 
-// ----- End: Infinite loop ----- 
+(AFTER_DIV)
+// === Step 7: Adjust quotient sign ===
+// If R7 (dividend sign) != R8 (divisor sign), negate the quotient
+@R7
+D=M
+@R8
+D=D-M
+@SKIP_NEG_QUO
+D;JEQ
+@R2
+D=M
+D=-D
+@R2
+M=D
+(SKIP_NEG_QUO)
+
+// === Step 8: Adjust remainder sign ===
+// The remainder takes the same sign as the dividend
+@R7
+D=M
+@REM_POS
+D;JGT
+@R3
+D=M
+D=-D
+@R3
+M=D
+(REM_POS)
+
+// === Step 9: Jump to END ===
+@END
+0;JMP
+
+// === Error handler for division by zero ===
+(DIV_BY_ZERO)
+@R4
+M=1        // Set error flag
+@END
+0;JMP
+
+// === Final infinite loop ===
 (END)
-   @END
-   0;JMP
+@END
+0;JMP
