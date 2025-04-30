@@ -1,5 +1,3 @@
-// ================================================
-// Student-Made Hack Assembly Program
 // Integer Division with Sign Handling and Error Check
 // ---------------------------------------------------
 // Inputs:

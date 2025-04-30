@@ -1,5 +1,4 @@
-// ================================================
-// Student-Made Hack Assembly Program
+
 // Array Summation in Memory
 // ------------------------------------------------
 // Inputs:
